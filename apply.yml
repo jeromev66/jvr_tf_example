@@ -1,0 +1,33 @@
+steps:
+  - download: none
+    displayName: No Download
+  - task: DownloadBuildArtifacts@0
+    inputs:
+      artifactName: drop
+      downloadPath: "$(System.DefaultWorkingDirectory)"
+  - task: FileTransform@1
+    displayName: 'Update terraform variables'
+    inputs:
+        folderPath: '$(terraform_working_dir)'
+        fileType: 'json'
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+    displayName: 'Install Terraform 1.0.8'
+    inputs:
+        terraformVersion: 1.0.8
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV2@2
+    displayName: 'Terraform Init'
+    inputs:
+        command: init
+        backendServiceArm: '$(azure_subscription)'
+        backendAzureRmResourceGroupName: '$(terraform_backend_resource_group_name)'
+        backendAzureRmStorageAccountName: '$(terraform_backend_storage_account_name)'
+        backendAzureRmContainerName: '$(terraform_backend_container_name)'
+        backendAzureRmKey: $(tfstate_file)
+        workingDirectory: '$(terraform_working_dir)'
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV2@2
+    displayName: 'Terraform Apply'
+    inputs:
+        command: apply
+        environmentServiceNameAzureRM: '$(azure_subscription)'
+        workingDirectory: "$(terraform_working_dir)"
+        commandOptions: '-no-color'

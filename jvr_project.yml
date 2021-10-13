@@ -1,0 +1,73 @@
+trigger: none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: 'Group_Variable_Terraform'
+- name: terraform_working_dir
+  value: '$(System.DefaultWorkingDirectory)/drop/src/terraform'
+- name: terraform_source_dir
+  value: '$(System.DefaultWorkingDirectory)'
+- name: tfstate_file
+  value: jvr_project.tfstate
+
+stages:
+  - stage: BUILD
+    displayName: Build
+    jobs:
+      - job: build
+        displayName: Build
+        steps:
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: $(terraform_source_dir)
+              Contents: |
+                **
+                !.git/**/*
+                !terraform/.terraform/**
+                !.gitignore
+              TargetFolder: "$(build.artifactstagingdirectory)"
+              CleanTargetFolder: true
+              Output:
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+              ArtifactName: "drop"
+              publishLocation: "Container"
+  - stage: PLAN
+    dependsOn: BUILD
+    displayName: Plan
+    jobs:
+      - deployment: plan
+        displayName: Terraform plan
+        environment: "TERRAFORM PLAN"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: plan.yml
+  - stage: APPLY
+    dependsOn: PLAN
+    displayName: Apply
+    jobs:
+      - deployment: apply
+        displayName: Terraform apply
+        environment: "TERRAFORM APPLY"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: apply.yml
+  - stage: DESTROY
+    dependsOn: BUILD
+    displayName: Destroy
+    jobs:
+      - deployment: destroy
+        displayName: Terraform destroy
+        environment: "TERRAFORM DESTROY"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: destroy.yml
